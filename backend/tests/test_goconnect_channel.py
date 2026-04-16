@@ -194,6 +194,61 @@ class TestGoConnectSend:
 
         assert ch._http_client.request.call_count == 2
 
+    async def test_send_includes_reply_to_created_date(self) -> None:
+        """First chunk should include reply_to_created_date from metadata."""
+        ch = _make_channel()
+        ch._http_client = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = b'{"success": true}'
+        mock_resp.raise_for_status = MagicMock()
+        ch._http_client.request = AsyncMock(return_value=mock_resp)
+
+        msg = _make_outbound(
+            text="reply text",
+            metadata={"message_created_date": "2026-04-16T10:00:00.000Z", "bot_user_id": "bot-uuid-123", "bot_user_code": "BOT_TEST"},
+        )
+        await ch.send(msg)
+
+        payload = ch._http_client.request.call_args[1]["json"]
+        assert payload["reply_to_created_date"] == "2026-04-16T10:00:00.000Z"
+
+    async def test_send_reply_to_only_first_chunk(self) -> None:
+        """Only the first chunk should carry reply_to_created_date."""
+        ch = _make_channel()
+        ch._http_client = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = b'{"success": true}'
+        mock_resp.raise_for_status = MagicMock()
+        ch._http_client.request = AsyncMock(return_value=mock_resp)
+
+        long_text = "a" * (_GOCONNECT_MAX_TEXT_LEN + 100)
+        msg = _make_outbound(
+            text=long_text,
+            metadata={"message_created_date": "2026-04-16T10:00:00.000Z"},
+        )
+        await ch.send(msg)
+
+        assert ch._http_client.request.call_count == 2
+        first_payload = ch._http_client.request.call_args_list[0][1]["json"]
+        second_payload = ch._http_client.request.call_args_list[1][1]["json"]
+        assert "reply_to_created_date" in first_payload
+        assert "reply_to_created_date" not in second_payload
+
+    async def test_send_without_reply_to(self) -> None:
+        """No reply_to_created_date when metadata lacks message_created_date."""
+        ch = _make_channel()
+        ch._http_client = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.content = b'{"success": true}'
+        mock_resp.raise_for_status = MagicMock()
+        ch._http_client.request = AsyncMock(return_value=mock_resp)
+
+        msg = _make_outbound(text="reply text")
+        await ch.send(msg)
+
+        payload = ch._http_client.request.call_args[1]["json"]
+        assert "reply_to_created_date" not in payload
+
     async def test_send_empty_skipped(self) -> None:
         ch = _make_channel()
         ch._http_client = AsyncMock(spec=httpx.AsyncClient)
@@ -287,3 +342,29 @@ class TestGoConnectTextSplit:
         chunks = GoConnectChannel._split_text(text)
         assert len(chunks) == 2
         assert chunks[0] == part1
+
+
+# -- hooks alias routing tests ---------------------------------------------
+
+class TestGoConnectHooksAlias:
+    """Verify /hooks/goconnect endpoints are registered and delegate correctly."""
+
+    def test_hooks_router_registered(self) -> None:
+        from app.gateway.routers.channels import hooks_router
+
+        paths = [route.path for route in hooks_router.routes]
+        assert "/hooks/goconnect" in paths
+
+    async def test_hooks_health(self) -> None:
+        from httpx import ASGITransport, AsyncClient
+
+        from app.gateway.app import create_app
+
+        test_app = create_app()
+        transport = ASGITransport(app=test_app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/hooks/goconnect")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["status"] == "ok"
+            assert data["channel"] == "goconnect"

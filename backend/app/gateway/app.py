@@ -196,6 +196,9 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
     # Channels API is mounted at /api/channels
     app.include_router(channels.router)
 
+    # Webhook alias: /hooks/goconnect (GoClaw convention)
+    app.include_router(channels.hooks_router)
+
     # Assistants compatibility API (LangGraph Platform stub)
     app.include_router(assistants_compat.router)
 

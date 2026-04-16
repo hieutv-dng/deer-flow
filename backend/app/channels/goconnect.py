@@ -134,13 +134,17 @@ class GoConnectChannel(Channel):
             "bot_user_code": msg.metadata.get("bot_user_code", self._bot_user_code),
         }
 
-        # Chunk text if exceeds limit
-        for chunk in self._split_text(text):
-            payload = {
+        # Chunk text if exceeds limit — only first chunk carries reply_to_created_date (GoClaw convention)
+        for i, chunk in enumerate(self._split_text(text)):
+            payload: dict[str, Any] = {
                 "type": "text",
                 "text": chunk,
                 "metadata": meta,
             }
+            if i == 0:
+                reply_to = msg.metadata.get("message_created_date", "")
+                if reply_to:
+                    payload["reply_to_created_date"] = reply_to
             try:
                 await self._api_call("POST", f"{_CONNECTOR_BASE_PATH}/webhook/response", payload)
             except Exception:

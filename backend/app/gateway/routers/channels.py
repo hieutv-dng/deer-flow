@@ -65,6 +65,23 @@ async def goconnect_webhook_health() -> dict:
     return {"status": "ok", "channel": "goconnect", "type": "goconnect"}
 
 
+# -- /hooks/goconnect alias (GoClaw convention) ----------------------------
+
+hooks_router = APIRouter(prefix="/hooks", tags=["channels"])
+
+
+@hooks_router.post("/goconnect")
+async def goconnect_hooks_webhook(request: Request) -> dict:
+    """Alias for /api/channels/goconnect/webhook (GoClaw convention)."""
+    return await goconnect_webhook(request)
+
+
+@hooks_router.get("/goconnect")
+async def goconnect_hooks_health() -> dict:
+    """Health check alias for /hooks/goconnect."""
+    return await goconnect_webhook_health()
+
+
 @router.post("/{name}/restart", response_model=ChannelRestartResponse)
 async def restart_channel(name: str) -> ChannelRestartResponse:
     """Restart a specific IM channel."""
