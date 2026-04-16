@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 _CHANNEL_REGISTRY: dict[str, str] = {
     "discord": "app.channels.discord:DiscordChannel",
     "feishu": "app.channels.feishu:FeishuChannel",
+    "goconnect": "app.channels.goconnect:GoConnectChannel",
     "slack": "app.channels.slack:SlackChannel",
     "telegram": "app.channels.telegram:TelegramChannel",
     "wechat": "app.channels.wechat:WechatChannel",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -32,6 +32,37 @@ async def get_channels_status() -> ChannelStatusResponse:
         return ChannelStatusResponse(service_running=False, channels={})
     status = service.get_status()
     return ChannelStatusResponse(**status)
+
+
+@router.post("/goconnect/webhook")
+async def goconnect_webhook(request: Request) -> dict:
+    """Receive inbound messages from GoConnect Chat Service."""
+    from app.channels.service import get_channel_service
+
+    service = get_channel_service()
+    if service is None:
+        raise HTTPException(status_code=503, detail="Channel service not running")
+
+    channel = service.get_channel("goconnect")
+    if channel is None:
+        raise HTTPException(status_code=503, detail="GoConnect channel not available")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    result = await channel.handle_webhook(payload)
+    if result.get("status") == "error":
+        status_code = 401 if "token" in result.get("message", "") else 400
+        raise HTTPException(status_code=status_code, detail=result.get("message", "Bad request"))
+    return result
+
+
+@router.get("/goconnect/webhook")
+async def goconnect_webhook_health() -> dict:
+    """Health check for GoConnect webhook endpoint."""
+    return {"status": "ok", "channel": "goconnect", "type": "goconnect"}
 
 
 @router.post("/{name}/restart", response_model=ChannelRestartResponse)

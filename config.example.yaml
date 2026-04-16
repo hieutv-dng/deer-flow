@@ -853,6 +853,14 @@ checkpointer:
 #           context:
 #             thinking_enabled: true
 #             subagent_enabled: true
+#   goconnect:
+#     enabled: false
+#     base_url: $GOCONNECT_BASE_URL              # Chat Service URL (goclaw-connector)
+#     api_key: $GOCONNECT_API_KEY                 # licenseKey for WebHookGuard auth
+#     webhook_token: $GOCONNECT_WEBHOOK_TOKEN     # shared secret for inbound webhook
+#     bot_user_id: $GOCONNECT_BOT_USER_ID         # UUID of bot user
+#     bot_user_code: $GOCONNECT_BOT_USER_CODE     # Convention: BOT_*
+#
 #   wecom:
 #     enabled: false
 #     bot_id: $WECOM_BOT_ID
