@@ -52,7 +52,7 @@ async def goconnect_webhook(request: Request) -> dict:
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
-    result = await channel.handle_webhook(payload)
+    result = await channel.handle_webhook(payload, headers=dict(request.headers))
     if result.get("status") == "error":
         status_code = 401 if "token" in result.get("message", "") else 400
         raise HTTPException(status_code=status_code, detail=result.get("message", "Bad request"))

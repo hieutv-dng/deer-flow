@@ -73,10 +73,20 @@ class GoConnectChannel(Channel):
 
     # -- webhook handler ---------------------------------------------------
 
-    async def handle_webhook(self, payload: dict[str, Any]) -> dict[str, str]:
-        """Process inbound webhook from GoConnect Chat Service."""
-        # Validate token
-        token = payload.get("token", "")
+    async def handle_webhook(self, payload: dict[str, Any], *, headers: dict[str, str] | None = None) -> dict[str, str]:
+        """Process inbound webhook from GoConnect Chat Service.
+
+        Token is accepted from ``Authorization: Bearer <token>`` header
+        (GoClaw convention) or from the ``token`` field in the JSON body.
+        """
+        # Validate token — prefer Authorization header, fall back to body field
+        token = ""
+        if headers:
+            auth = headers.get("authorization", "")
+            if auth.lower().startswith("bearer "):
+                token = auth[7:].strip()
+        if not token:
+            token = payload.get("token", "")
         if self._webhook_token and token != self._webhook_token:
             logger.warning("[GoConnect] webhook token mismatch")
             return {"status": "error", "message": "invalid webhook token"}
